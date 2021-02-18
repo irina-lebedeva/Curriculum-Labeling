@@ -123,8 +123,8 @@ class Wrapper:
         4) [Optional] Get test set if in debug mode
         """
         # download precomputed zca components and mean for CIFAR10
-        urllib.urlretrieve("http://cs.virginia.edu/~pcascante/zca_components.npy", "zca_components.npy")
-        urllib.urlretrieve("http://cs.virginia.edu/~pcascante/zca_mean.npy", "zca_mean.npy")
+        #urllib.urlretrieve("http://cs.virginia.edu/~pcascante/zca_components.npy", "zca_components.npy")
+        #urllib.urlretrieve("http://cs.virginia.edu/~pcascante/zca_mean.npy", "zca_mean.npy")
 
         # load data
         data = dataloaders.load_data_subsets(self.args.augPolicy, self.args.dataset, self.args.data_dir)

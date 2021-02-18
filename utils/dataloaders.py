@@ -9,7 +9,7 @@ import torch
 import torchvision
 from torchvision import datasets
 import torchvision.transforms as transforms
-
+from utils.datasets_scut import SCUTFBP5500Dataset
 from .archive import random_augment
 from .augmentations import *
 
@@ -50,7 +50,7 @@ class Augmentation(object):
             policy = random.choice(self.policies)
             for name, pr, level in policy:
                 if random.random() > pr:
-                    continue
+                    continue   
                 img = apply_augment(img, name, level)
         return img
 
@@ -96,13 +96,16 @@ def load_data_subsets(data_aug, dataset, data_target_dir):
     elif dataset == 'cub2011':
         mean = [x / 255 for x in [0.485, 0.456, 0.406]]
         std = [x / 255 for x in [0.229, 0.224, 0.225]]
+    elif dataset == 'scut':
+        mean = [x / 255 for x in [123.675, 116.28, 103.53]]
+        std = [x / 255 for x in [58.395, 57.12, 57.375]] 
     elif dataset == 'mnist':
         pass
     else:
         assert False, "Unknow dataset : {}".format(dataset)
 
     if data_aug==1 or data_aug == 2:
-        if dataset == 'cifar10' or dataset == 'cifar100':
+        if dataset == 'cifar10' or dataset == 'cifar100' or dataset == 'scut':
             train_transform = transforms.Compose([transforms.RandomCrop(32, padding=4),
                                                     transforms.RandomHorizontalFlip(),
                                                     transforms.ToTensor(),
@@ -113,18 +116,7 @@ def load_data_subsets(data_aug, dataset, data_target_dir):
                 train_transform.transforms.insert(0, Augmentation(random_augment())) #adding random_augmentations
                 train_transform.transforms.append(CutoutDefault(16))
             test_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean, std)])
-
-        if dataset == 'svhn':
-            train_transform = transforms.Compose([ transforms.RandomCrop(32, padding=2),
-                                                transforms.ToTensor(),
-                                                transforms.Normalize(mean, std)])
-            
-            if data_aug==2:
-                prRed ('heavy random data augmentation will be applied')
-                train_transform.transforms.insert(0, Augmentation(random_augment())) #adding random augmentations
-                train_transform.transforms.append(CutoutDefault(16)) #adding cutout
-            test_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean, std)])
-
+        
         if dataset == 'imagenet':
             if data_aug==1:
                 train_transform = transforms.Compose([transforms.RandomResizedCrop(224),
@@ -186,6 +178,11 @@ def load_data_subsets(data_aug, dataset, data_target_dir):
         train_data_noT = datasets.SVHN(data_target_dir, split='train', transform=test_transform, download=True)
         test_data = datasets.SVHN(data_target_dir, split='test', transform=test_transform, download=True)
         num_classes = 10
+    elif dataset == 'scut':
+        train_data = SCUTFBP5500Dataset(train=True, transform=train_transform)
+        train_data_noT = SCUTFBP5500Dataset(train=True, transform=train_transform)
+        test_data = SCUTFBP5500Dataset(train=False, transform=test_transform)
+        num_classes = 5    
     elif dataset == 'imagenet':
         train_data = torchvision.datasets.ImageNet(data_target_dir, split='train', transform=train_transform) #, download=True)
         train_data_noT = torchvision.datasets.ImageNet(data_target_dir, split='train', transform=test_transform) #, download=True)
@@ -201,16 +198,18 @@ def get_sampler(labels, set_labeled_classes, set_unlabeled_classes, n=None, n_va
     # labels available in the dataset (10 for CIFAR10 (6 if only animals) and SVHN, 1000 for Imagenet)
     # n = number of labels per class for training
     # n_val = number of lables per class for validation
-
+    print(type(labels))
     all_train_data = {}
     for i, l in enumerate(labels):
+        #print(i,l)
         if l not in list(all_train_data.keys()):
             all_train_data[l] = [i]
         else:
             all_train_data[l].append(i)
-
+          
     #get pseudo-random distribution of data
     for i in range (len(all_train_data)):
+        print(len(all_train_data[i]))
         random.seed(seed)
         randomIndexes = random.sample(range(0, len(all_train_data[i])), len(all_train_data[i]))
         trainData = np.asarray(all_train_data[i])
@@ -272,7 +271,7 @@ def get_sampler(labels, set_labeled_classes, set_unlabeled_classes, n=None, n_va
 
 # Returns dataloaders with samplers and index order (for pseudo-labeling)
 def get_train_dataloaders(dataset, train_data, train_data_noT, batch_size, workers, labels_per_class, valid_labels_per_class, seed, set_labeled_classes, set_unlabeled_classes, ordered=False, indices_for_rotation = []):
-
+    import pandas as pd
     if dataset == 'svhn':
         train_sampler, valid_sampler, unlabelled_sampler, indices_train, indices_unlabelled, train_index_order, unlabeled_index_order = get_sampler(train_data.labels, set_labeled_classes, set_unlabeled_classes, labels_per_class, valid_labels_per_class, ordered=ordered, seed = seed, indices_for_rotation=indices_for_rotation)
     elif dataset == 'imagenet':
@@ -281,9 +280,15 @@ def get_train_dataloaders(dataset, train_data, train_data_noT, batch_size, worke
         allsamples = allimgs[:, 1]
         labels = list(map(int, allsamples))
         train_sampler, valid_sampler, unlabelled_sampler, indices_train, indices_unlabelled, train_index_order, unlabeled_index_order = get_sampler(labels, set_labeled_classes, set_unlabeled_classes, labels_per_class, valid_labels_per_class, ordered=ordered, seed = seed, indices_for_rotation=indices_for_rotation)
+    elif dataset == 'scut':
+        split_train = '/home/ubuntu/SCUT5500/train_test_files/split_of_60%training and 40%testing/train.txt'
+        face_score = pd.read_csv(split_train,sep=' ',names=['image','score'], header=None)
+        labels = face_score['score'].astype(int) - 1 
+        train_sampler, valid_sampler, unlabelled_sampler, indices_train, indices_unlabelled, train_index_order, unlabeled_index_order = get_sampler(labels.tolist(), set_labeled_classes, set_unlabeled_classes, labels_per_class, valid_labels_per_class, ordered=ordered, seed = seed, indices_for_rotation=indices_for_rotation)
     elif dataset == 'cub2011':
         train_sampler, valid_sampler, unlabelled_sampler, indices_train, indices_unlabelled, train_index_order, unlabeled_index_order = get_sampler(train_data.data['target'].tolist(), set_labeled_classes, set_unlabeled_classes, labels_per_class, valid_labels_per_class, ordered=ordered, seed = seed, indices_for_rotation=indices_for_rotation)
     else: #cifar10
+       
         train_sampler, valid_sampler, unlabelled_sampler, indices_train, indices_unlabelled, train_index_order, unlabeled_index_order = get_sampler(train_data.targets, set_labeled_classes, set_unlabeled_classes, labels_per_class, valid_labels_per_class, ordered=ordered, seed = seed, indices_for_rotation=indices_for_rotation)
 
     if ordered: #use moderate transforms to get scores
@@ -299,4 +304,5 @@ def get_train_dataloaders(dataset, train_data, train_data_noT, batch_size, worke
 
 def get_test_dataloader(test_data, batch_size, workers):
     test = torch.utils.data.DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=workers, pin_memory=True)
+    #print(test)
     return test

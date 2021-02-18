@@ -98,6 +98,10 @@ class Curriculum_Labeling(Train_Base):
     # end of mixup code from: https://arxiv.org/pdf/1710.09412.pdf ==> https://github.com/facebookresearch/mixup-cifar10
 
     def train_models(self, trainloader, unlabelledloader, unlabelled_sampler, indices_unlabelled, validloader, testloader, modelName, model, optimizer, train_logger, val_logger, num_classes = 10, hard_labeles_for_rotation = {}, init_epoch = 0):
+        
+        #print(validloader)
+        
+        
         """
         Method to train the Curriculum Labeling method.
         When no pseudo labels are given: train_base, else: train_pseudo.
@@ -261,9 +265,11 @@ class Curriculum_Labeling(Train_Base):
         meters = AverageMeterSet()
         model.train()
         end = time.time()
-
+        
+ 
         for i, (input, target) in enumerate(trainloader):
-            # measure data loading time
+            #print('ira train')
+            #print(target)
             meters.update('data_time', time.time() - end)
             if self.args.dataset == 'cifar10':
                 if use_zca:

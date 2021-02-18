@@ -8,7 +8,7 @@ import wrapper as super_glue
 
 parser = argparse.ArgumentParser(description='Curriculum Labeling Implementation')
 
-parser.add_argument('--dataset', metavar='DATASET', default='cifar10', choices=['cifar10','svhn','imagenet'], 
+parser.add_argument('--dataset', metavar='DATASET', default='cifar10', choices=['cifar10','svhn','imagenet','scut'], 
                     help='dataset: cifar10, svhn or imagenet' )
 parser.add_argument('--num_labeled', default=400, type=int, metavar='L',
                     help='number of labeled samples per class')

@@ -188,11 +188,13 @@ class Train_Base():
 
         end = time.time()
         for i, (input, target) in enumerate(eval_loader):
+            #print('ira test')
+            print(target)
             meters.update('data_time', time.time() - end)
 
-            if self.args.dataset == 'cifar10':
-                if self.args.use_zca:
-                    input = apply_zca(input, zca_mean, zca_components)
+            #if self.args.dataset == 'cifar10':
+              #  if self.args.use_zca:
+             #       input = apply_zca(input, zca_mean, zca_components)
 
             with torch.no_grad():
                 input_var = torch.autograd.Variable(input.cuda())
@@ -207,7 +209,9 @@ class Train_Base():
             class_loss = class_criterion(output1, target_var)
 
             # measure accuracy and record loss
+            #print(output1.data)
             prec1, prec5 = self.accuracy(output1.data, target_var.data, topk=(1, k))
+            print()
             meters.update('class_loss', class_loss.item(), minibatch_size)
             meters.update('top1', prec1[0], minibatch_size)
             meters.update('error1', 100.0 - prec1[0], minibatch_size)
@@ -330,11 +334,15 @@ class Train_Base():
         minibatch_size = len(target)
         _, pred = output.topk(maxk, 1, True, True)
         pred = pred.t()
+   
         correct = pred.eq(target.view(1, -1).expand_as(pred))
-
+        #print(pred)
+        #print('ira')
+        #print(correct)
+        
         res = []
         for k in topk:
-            correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
+            correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
             res.append(correct_k.mul_(100.0 / minibatch_size))
         return res  
 
